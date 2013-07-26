@@ -1,0 +1,313 @@
+cinder/doc/source/devref/rpc.rst:33:Cinder implements RPC (both request+response, and one-way, respectively nicknamed 'rpc.call' and 'rpc.cast') over AMQP by providing an adapter class which take cares of marshaling and unmarshaling of messages into function calls. Each Cinder service (for example Compute, Volume, etc.) create two queues at the initialization time, one which accepts messages with routing keys 'NODE-TYPE.NODE-ID' (for example compute.hostname) and another, which accepts messages with routing keys as generic 'NODE-TYPE' (for example compute). The former is used specifically when Cinder-API needs to redirect commands to a specific node like 'euca-terminate instance'. In this case, only the  compute node whose host's hypervisor is running the virtual machine can kill the instance. The API acts as a consumer when RPC calls are request/response, otherwise is acts as publisher only.
+cinder/doc/source/devref/rpc.rst:43:    * Direct Consumer: a Direct Consumer comes to life if (an only if) a rpc.call operation is executed; this object is instantiated and used to receive a response message from the queuing system; Every consumer connects to a unique direct-based exchange via a unique exclusive queue; its life-cycle is limited to the message delivery; the exchange and queue identifiers are determined by a UUID generator, and are marshaled in the message sent by the Topic Publisher (only rpc.call operations).
+cinder/doc/source/devref/rpc.rst:44:    * Topic Consumer: a Topic Consumer comes to life as soon as a Worker is instantiated and exists throughout its life-cycle; this object is used to receive messages from the queue and it invokes the appropriate action as defined by the Worker role. A Topic Consumer connects to the same topic-based exchange either via a shared queue or via a unique exclusive queue. Every Worker has two topic consumers, one that is addressed only during rpc.cast operations (and it connects to a shared queue whose exchange key is 'topic') and the other that is addressed only during rpc.call operations (and it connects to a unique queue whose exchange key is 'topic.host').
+cinder/doc/source/devref/rpc.rst:48:    * Queue Element: A Queue is a message bucket. Messages are kept in the queue until a Consumer (either Topic or Direct Consumer) connects to the queue and fetch it. Queues can be shared or can be exclusive. Queues whose routing key is 'topic' are shared amongst Workers of the same personality.
+cinder/doc/source/devref/rpc.rst:60:    1. a Topic Publisher is instantiated to send the message request to the queuing system; immediately before the publishing operation, a Direct Consumer is instantiated to wait for the response message.
+cinder/doc/source/devref/rpc.rst:61:    2. once the message is dispatched by the exchange, it is fetched by the Topic Consumer dictated by the routing key (such as 'topic.host') and passed to the Worker in charge of the task.
+cinder/doc/source/devref/rpc.rst:63:    4. once the message is dispatched by the exchange, it is fetched by the Direct Consumer dictated by the routing key (such as 'msg_id') and passed to the Invoker.
+cinder/doc/source/devref/rpc.rst:76:    2. Once the message is dispatched by the exchange, it is fetched by the Topic Consumer dictated by the routing key (such as 'topic') and passed to the Worker in charge of the task.
+cinder/doc/source/devref/rpc.rst:88:    * Throughput of API calls: the number of API calls (more precisely rpc.call ops) being served by the OpenStack cloud dictates the number of direct-based exchanges, related queues and direct consumers connected to them.
+cinder/doc/source/devref/rpc.rst:127:More precisely Consumers need the following parameters:
+cinder/doc/source/devref/rpc.rst:145:      Publishers specify most the parameters of Consumers (such as they do not specify a queue name), but they can also specify the following:
+cinder/doc/source/images/rpc/rabt.svg:314:			<desc>Topic Consumer</desc>
+cinder/doc/source/images/rpc/rabt.svg:322:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/rabt.svg:325:			<desc>Topic Consumer</desc>
+cinder/doc/source/images/rpc/rabt.svg:333:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/rabt.svg:535:			<desc>Direct Consumer</desc>
+cinder/doc/source/images/rpc/rabt.svg:543:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/flow2.svg:319:			<desc>Topic Consumer</desc>
+cinder/doc/source/images/rpc/flow2.svg:327:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/flow2.svg:330:			<desc>Topic Consumer</desc>
+cinder/doc/source/images/rpc/flow2.svg:338:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/flow1.svg:324:			<desc>Topic Consumer</desc>
+cinder/doc/source/images/rpc/flow1.svg:332:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/flow1.svg:335:			<desc>Topic Consumer</desc>
+cinder/doc/source/images/rpc/flow1.svg:343:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/doc/source/images/rpc/flow1.svg:545:			<desc>Direct Consumer</desc>
+cinder/doc/source/images/rpc/flow1.svg:553:						x="17.63" dy="1.2em" class="st9">Consumer</tspan></text>		</g>
+cinder/cinder/openstack/common/rpc/amqp.py:134:    def create_consumer(self, topic, proxy, fanout=False):
+cinder/cinder/openstack/common/rpc/amqp.py:135:        self.connection.create_consumer(topic, proxy, fanout)
+cinder/cinder/openstack/common/rpc/amqp.py:236:        """Consumer callback to call a method on a proxy object.
+cinder/cinder/openstack/common/rpc/amqp.py:321:        """Return a result until we get a 'None' response from consumer"""
+cinder/cinder/openstack/common/rpc/amqp.py:359:    conn.declare_direct_consumer(msg_id, wait_msg)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:85:class ConsumerBase(object):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:86:    """Consumer base class."""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:152:class DirectConsumer(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:153:    """Queue/consumer class for 'direct'"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:163:        super(DirectConsumer, self).__init__(session, callback,
+cinder/cinder/openstack/common/rpc/impl_qpid.py:170:class TopicConsumer(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:171:    """Consumer class for 'topic'"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:185:        super(TopicConsumer, self).__init__(session, callback,
+cinder/cinder/openstack/common/rpc/impl_qpid.py:190:class FanoutConsumer(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:191:    """Consumer class for 'fanout'"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:201:        super(FanoutConsumer, self).__init__(
+cinder/cinder/openstack/common/rpc/impl_qpid.py:293:        self.consumers = {}
+cinder/cinder/openstack/common/rpc/impl_qpid.py:294:        self.consumer_thread = None
+cinder/cinder/openstack/common/rpc/impl_qpid.py:341:    def _register_consumer(self, consumer):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:342:        self.consumers[str(consumer.get_receiver())] = consumer
+cinder/cinder/openstack/common/rpc/impl_qpid.py:344:    def _lookup_consumer(self, receiver):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:345:        return self.consumers[str(receiver)]
+cinder/cinder/openstack/common/rpc/impl_qpid.py:368:        for consumer in self.consumers.itervalues():
+cinder/cinder/openstack/common/rpc/impl_qpid.py:369:            consumer.reconnect(self.session)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:371:        if self.consumers:
+cinder/cinder/openstack/common/rpc/impl_qpid.py:386:        self.cancel_consumer_thread()
+cinder/cinder/openstack/common/rpc/impl_qpid.py:392:        self.cancel_consumer_thread()
+cinder/cinder/openstack/common/rpc/impl_qpid.py:395:        self.consumers = {}
+cinder/cinder/openstack/common/rpc/impl_qpid.py:397:    def declare_consumer(self, consumer_cls, topic, callback):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:398:        """Create a Consumer using the class that was passed in and
+cinder/cinder/openstack/common/rpc/impl_qpid.py:399:        add it to our list of consumers
+cinder/cinder/openstack/common/rpc/impl_qpid.py:403:            LOG.error(_("Failed to declare consumer for topic '%(topic)s': "
+cinder/cinder/openstack/common/rpc/impl_qpid.py:406:        def _declare_consumer():
+cinder/cinder/openstack/common/rpc/impl_qpid.py:407:            consumer = consumer_cls(self.conf, self.session, topic, callback)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:408:            self._register_consumer(consumer)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:409:            return consumer
+cinder/cinder/openstack/common/rpc/impl_qpid.py:411:        return self.ensure(_connect_error, _declare_consumer)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:414:        """Return an iterator that will consume from all queues/consumers"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:428:                self._lookup_consumer(nxt_receiver).consume()
+cinder/cinder/openstack/common/rpc/impl_qpid.py:437:    def cancel_consumer_thread(self):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:438:        """Cancel a consumer thread"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:439:        if self.consumer_thread is not None:
+cinder/cinder/openstack/common/rpc/impl_qpid.py:440:            self.consumer_thread.kill()
+cinder/cinder/openstack/common/rpc/impl_qpid.py:442:                self.consumer_thread.wait()
+cinder/cinder/openstack/common/rpc/impl_qpid.py:445:            self.consumer_thread = None
+cinder/cinder/openstack/common/rpc/impl_qpid.py:461:    def declare_direct_consumer(self, topic, callback):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:466:        self.declare_consumer(DirectConsumer, topic, callback)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:468:    def declare_topic_consumer(self, topic, callback=None, queue_name=None,
+cinder/cinder/openstack/common/rpc/impl_qpid.py:470:        """Create a 'topic' consumer."""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:471:        self.declare_consumer(functools.partial(TopicConsumer,
+cinder/cinder/openstack/common/rpc/impl_qpid.py:477:    def declare_fanout_consumer(self, topic, callback):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:478:        """Create a 'fanout' consumer"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:479:        self.declare_consumer(FanoutConsumer, topic, callback)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:498:        """Consume from all queues/consumers"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:507:        """Consumer from all queues/consumers in a greenthread"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:508:        def _consumer_thread():
+cinder/cinder/openstack/common/rpc/impl_qpid.py:513:        if self.consumer_thread is None:
+cinder/cinder/openstack/common/rpc/impl_qpid.py:514:            self.consumer_thread = eventlet.spawn(_consumer_thread)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:515:        return self.consumer_thread
+cinder/cinder/openstack/common/rpc/impl_qpid.py:517:    def create_consumer(self, topic, proxy, fanout=False):
+cinder/cinder/openstack/common/rpc/impl_qpid.py:518:        """Create a consumer that calls a method in a proxy object"""
+cinder/cinder/openstack/common/rpc/impl_qpid.py:524:            consumer = FanoutConsumer(self.conf, self.session, topic, proxy_cb)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:526:            consumer = TopicConsumer(self.conf, self.session, topic, proxy_cb)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:528:        self._register_consumer(consumer)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:530:        return consumer
+cinder/cinder/openstack/common/rpc/impl_qpid.py:538:        consumer = TopicConsumer(self.conf, self.session, topic, proxy_cb,
+cinder/cinder/openstack/common/rpc/impl_qpid.py:541:        self._register_consumer(consumer)
+cinder/cinder/openstack/common/rpc/impl_qpid.py:543:        return consumer
+Binary file cinder/cinder/openstack/common/rpc/impl_kombu.pyc matches
+Binary file cinder/cinder/openstack/common/rpc/common.pyc matches
+cinder/cinder/openstack/common/rpc/impl_kombu.py:114:class ConsumerBase(object):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:115:    """Consumer base class."""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:122:        'tag' is a unique ID for the consumer on the channel
+cinder/cinder/openstack/common/rpc/impl_kombu.py:141:        """Actually declare the consumer on the amqp channel.  This will
+cinder/cinder/openstack/common/rpc/impl_kombu.py:156:        options = {'consumer_tag': self.tag}
+cinder/cinder/openstack/common/rpc/impl_kombu.py:183:class DirectConsumer(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:184:    """Queue/consumer class for 'direct'"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:192:        'tag' is a unique ID for the consumer on the channel
+cinder/cinder/openstack/common/rpc/impl_kombu.py:205:        super(DirectConsumer, self).__init__(channel,
+cinder/cinder/openstack/common/rpc/impl_kombu.py:214:class TopicConsumer(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:215:    """Consumer class for 'topic'"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:225:        :param tag: a unique ID for the consumer on the channel
+cinder/cinder/openstack/common/rpc/impl_kombu.py:242:        super(TopicConsumer, self).__init__(channel,
+cinder/cinder/openstack/common/rpc/impl_kombu.py:251:class FanoutConsumer(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:252:    """Consumer class for 'fanout'"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:260:        'tag' is a unique ID for the consumer on the channel
+cinder/cinder/openstack/common/rpc/impl_kombu.py:276:        super(FanoutConsumer, self).__init__(channel, callback, tag,
+cinder/cinder/openstack/common/rpc/impl_kombu.py:369:        # NOTE(jerdfelt): Normally the consumer would create the queue, but
+cinder/cinder/openstack/common/rpc/impl_kombu.py:371:        # consumer is started after we do
+cinder/cinder/openstack/common/rpc/impl_kombu.py:387:        self.consumers = []
+cinder/cinder/openstack/common/rpc/impl_kombu.py:388:        self.consumer_thread = None
+cinder/cinder/openstack/common/rpc/impl_kombu.py:482:        self.consumer_num = itertools.count(1)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:488:        for consumer in self.consumers:
+cinder/cinder/openstack/common/rpc/impl_kombu.py:489:            consumer.reconnect(self.channel)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:574:        self.cancel_consumer_thread()
+cinder/cinder/openstack/common/rpc/impl_kombu.py:580:        self.cancel_consumer_thread()
+cinder/cinder/openstack/common/rpc/impl_kombu.py:586:        self.consumers = []
+cinder/cinder/openstack/common/rpc/impl_kombu.py:588:    def declare_consumer(self, consumer_cls, topic, callback):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:589:        """Create a Consumer using the class that was passed in and
+cinder/cinder/openstack/common/rpc/impl_kombu.py:590:        add it to our list of consumers
+cinder/cinder/openstack/common/rpc/impl_kombu.py:595:            LOG.error(_("Failed to declare consumer for topic '%(topic)s': "
+cinder/cinder/openstack/common/rpc/impl_kombu.py:598:        def _declare_consumer():
+cinder/cinder/openstack/common/rpc/impl_kombu.py:599:            consumer = consumer_cls(self.conf, self.channel, topic, callback,
+cinder/cinder/openstack/common/rpc/impl_kombu.py:600:                                    self.consumer_num.next())
+cinder/cinder/openstack/common/rpc/impl_kombu.py:601:            self.consumers.append(consumer)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:602:            return consumer
+cinder/cinder/openstack/common/rpc/impl_kombu.py:604:        return self.ensure(_connect_error, _declare_consumer)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:607:        """Return an iterator that will consume from all queues/consumers"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:623:                queues_head = self.consumers[:-1]
+cinder/cinder/openstack/common/rpc/impl_kombu.py:624:                queues_tail = self.consumers[-1]
+cinder/cinder/openstack/common/rpc/impl_kombu.py:636:    def cancel_consumer_thread(self):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:637:        """Cancel a consumer thread"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:638:        if self.consumer_thread is not None:
+cinder/cinder/openstack/common/rpc/impl_kombu.py:639:            self.consumer_thread.kill()
+cinder/cinder/openstack/common/rpc/impl_kombu.py:641:                self.consumer_thread.wait()
+cinder/cinder/openstack/common/rpc/impl_kombu.py:644:            self.consumer_thread = None
+cinder/cinder/openstack/common/rpc/impl_kombu.py:660:    def declare_direct_consumer(self, topic, callback):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:665:        self.declare_consumer(DirectConsumer, topic, callback)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:667:    def declare_topic_consumer(self, topic, callback=None, queue_name=None,
+cinder/cinder/openstack/common/rpc/impl_kombu.py:669:        """Create a 'topic' consumer."""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:670:        self.declare_consumer(functools.partial(TopicConsumer,
+cinder/cinder/openstack/common/rpc/impl_kombu.py:676:    def declare_fanout_consumer(self, topic, callback):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:677:        """Create a 'fanout' consumer"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:678:        self.declare_consumer(FanoutConsumer, topic, callback)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:697:        """Consume from all queues/consumers"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:706:        """Consumer from all queues/consumers in a greenthread"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:707:        def _consumer_thread():
+cinder/cinder/openstack/common/rpc/impl_kombu.py:712:        if self.consumer_thread is None:
+cinder/cinder/openstack/common/rpc/impl_kombu.py:713:            self.consumer_thread = eventlet.spawn(_consumer_thread)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:714:        return self.consumer_thread
+cinder/cinder/openstack/common/rpc/impl_kombu.py:716:    def create_consumer(self, topic, proxy, fanout=False):
+cinder/cinder/openstack/common/rpc/impl_kombu.py:717:        """Create a consumer that calls a method in a proxy object"""
+cinder/cinder/openstack/common/rpc/impl_kombu.py:723:            self.declare_fanout_consumer(topic, proxy_cb)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:725:            self.declare_topic_consumer(topic, proxy_cb)
+cinder/cinder/openstack/common/rpc/impl_kombu.py:732:        self.declare_topic_consumer(topic, proxy_cb, pool_name)
+cinder/cinder/openstack/common/rpc/__init__.py:75:    For some example usage of creating a connection and some consumers on that
+cinder/cinder/openstack/common/rpc/__init__.py:95:                  openstack.common.rpc.common.Connection.create_consumer()
+cinder/cinder/openstack/common/rpc/__init__.py:96:                  and only applies when the consumer was created with
+cinder/cinder/openstack/common/rpc/__init__.py:118:                  openstack.common.rpc.common.Connection.create_consumer()
+cinder/cinder/openstack/common/rpc/__init__.py:119:                  and only applies when the consumer was created with
+cinder/cinder/openstack/common/rpc/__init__.py:132:    This method will get invoked on all consumers that were set up with this
+cinder/cinder/openstack/common/rpc/__init__.py:139:                  openstack.common.rpc.common.Connection.create_consumer()
+cinder/cinder/openstack/common/rpc/__init__.py:140:                  and only applies when the consumer was created with
+cinder/cinder/openstack/common/rpc/__init__.py:161:                  openstack.common.rpc.common.Connection.create_consumer()
+cinder/cinder/openstack/common/rpc/__init__.py:162:                  and only applies when the consumer was created with
+cinder/cinder/openstack/common/rpc/__init__.py:242:    consumer side, as well.  For example, in nova, every instance of the
+cinder/cinder/openstack/common/rpc/__init__.py:243:    nova-foo service calls create_consumer() for two topics:
+Binary file cinder/cinder/openstack/common/rpc/amqp.pyc matches
+Binary file cinder/cinder/openstack/common/rpc/__init__.pyc matches
+cinder/cinder/openstack/common/rpc/common.py:109:    def create_consumer(self, topic, proxy, fanout=False):
+cinder/cinder/openstack/common/rpc/common.py:110:        """Create a consumer on this connection.
+cinder/cinder/openstack/common/rpc/common.py:112:        A consumer is associated with a message queue on the backend message
+cinder/cinder/openstack/common/rpc/common.py:113:        bus.  The consumer will read messages from the queue, unpack them, and
+cinder/cinder/openstack/common/rpc/common.py:122:                      messages will get distributed amongst the consumers in a
+cinder/cinder/openstack/common/rpc/common.py:124:                      every consumer associated with this topic will get a
+cinder/cinder/openstack/common/rpc/common.py:136:        A worker is like a regular consumer of messages directed to a
+cinder/cinder/openstack/common/rpc/common.py:137:        topic, except that it is part of a set of such consumers (the
+cinder/cinder/openstack/common/rpc/common.py:155:        messages for consumers that were set up on this connection.
+cinder/cinder/openstack/common/rpc/common.py:159:        thread pull messages in for all of the consumers, but utilize a thread
+cinder/cinder/openstack/common/rpc/impl_zmq.py:242:    """Used by ConsumerBase as a private context for - methods."""
+cinder/cinder/openstack/common/rpc/impl_zmq.py:257:            return ConsumerBase.normalize_reply(result, ctx.replies)
+cinder/cinder/openstack/common/rpc/impl_zmq.py:271:        response = ConsumerBase.normalize_reply(
+cinder/cinder/openstack/common/rpc/impl_zmq.py:285:class ConsumerBase(object):
+cinder/cinder/openstack/common/rpc/impl_zmq.py:286:    """Base Consumer."""
+cinder/cinder/openstack/common/rpc/impl_zmq.py:321:class ZmqBaseReactor(ConsumerBase):
+cinder/cinder/openstack/common/rpc/impl_zmq.py:323:    A consumer class implementing a
+cinder/cinder/openstack/common/rpc/impl_zmq.py:397:    A consumer class implementing a
+cinder/cinder/openstack/common/rpc/impl_zmq.py:421:        LOG.debug(_("CONSUMER GOT %s"), ' '.join(map(pformat, data)))
+cinder/cinder/openstack/common/rpc/impl_zmq.py:455:    A consumer class implementing a
+cinder/cinder/openstack/common/rpc/impl_zmq.py:456:    consumer for messages. Can also be
+cinder/cinder/openstack/common/rpc/impl_zmq.py:466:        LOG.debug(_("CONSUMER RECEIVED DATA: %s"), data)
+cinder/cinder/openstack/common/rpc/impl_zmq.py:490:    def create_consumer(self, topic, proxy, fanout=False):
+cinder/cinder/openstack/common/rpc/impl_zmq.py:494:        LOG.info(_("Create Consumer for topic (%(topic)s)") %
+cinder/cinder/openstack/common/rpc/impl_zmq.py:510:        LOG.debug(_("Consumer is a zmq.%s"),
+cinder/cinder/openstack/common/rpc/impl_zmq.py:569:    # TODO(ewindisch): have reply consumer with dynamic subscription mgmt
+cinder/cinder/openstack/common/rpc/impl_fake.py:28:CONSUMERS = {}
+cinder/cinder/openstack/common/rpc/impl_fake.py:51:class Consumer(object):
+cinder/cinder/openstack/common/rpc/impl_fake.py:99:        self.consumers = []
+cinder/cinder/openstack/common/rpc/impl_fake.py:101:    def create_consumer(self, topic, proxy, fanout=False):
+cinder/cinder/openstack/common/rpc/impl_fake.py:102:        consumer = Consumer(topic, proxy)
+cinder/cinder/openstack/common/rpc/impl_fake.py:103:        self.consumers.append(consumer)
+cinder/cinder/openstack/common/rpc/impl_fake.py:104:        if topic not in CONSUMERS:
+cinder/cinder/openstack/common/rpc/impl_fake.py:105:            CONSUMERS[topic] = []
+cinder/cinder/openstack/common/rpc/impl_fake.py:106:        CONSUMERS[topic].append(consumer)
+cinder/cinder/openstack/common/rpc/impl_fake.py:109:        for consumer in self.consumers:
+cinder/cinder/openstack/common/rpc/impl_fake.py:110:            CONSUMERS[consumer.topic].remove(consumer)
+cinder/cinder/openstack/common/rpc/impl_fake.py:111:        self.consumers = []
+cinder/cinder/openstack/common/rpc/impl_fake.py:139:        consumer = CONSUMERS[topic][0]
+cinder/cinder/openstack/common/rpc/impl_fake.py:143:        return consumer.call(context, version, method, args, timeout)
+cinder/cinder/openstack/common/rpc/impl_fake.py:172:    """Cast to all consumers of a topic"""
+cinder/cinder/openstack/common/rpc/impl_fake.py:180:    for consumer in CONSUMERS.get(topic, []):
+cinder/cinder/openstack/common/rpc/impl_fake.py:182:            consumer.call(context, version, method, args, None)
+cinder/cinder/openstack/common/rpc/service.py:47:        LOG.debug(_("Creating Consumer connection for Service %s") %
+cinder/cinder/openstack/common/rpc/service.py:52:        # Share this same connection for these Consumers
+cinder/cinder/openstack/common/rpc/service.py:53:        self.conn.create_consumer(self.topic, dispatcher, fanout=False)
+cinder/cinder/openstack/common/rpc/service.py:56:        self.conn.create_consumer(node_topic, dispatcher, fanout=False)
+cinder/cinder/openstack/common/rpc/service.py:58:        self.conn.create_consumer(self.topic, dispatcher, fanout=True)
+cinder/cinder/openstack/common/rpc/service.py:60:        # Consume from all consumers in a thread
+cinder/cinder/tests/test_test.py:35:    def test_rpc_consumer_isolation(self):
+cinder/cinder/tests/test_test.py:43:        connection.create_consumer('volume', proxy, fanout=False)
+Binary file cinder/cinder/service.pyc matches
+cinder/cinder/locale/es/LC_MESSAGES/cinder.po:1125:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/es/LC_MESSAGES/cinder.po:4195:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/es/LC_MESSAGES/cinder.po:7609:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/es/LC_MESSAGES/cinder.po:7615:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/tl/LC_MESSAGES/cinder.po:1113:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/tl/LC_MESSAGES/cinder.po:4168:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/tl/LC_MESSAGES/cinder.po:7565:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/tl/LC_MESSAGES/cinder.po:7571:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/zh_CN/LC_MESSAGES/cinder.po:1121:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/zh_CN/LC_MESSAGES/cinder.po:4215:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/zh_CN/LC_MESSAGES/cinder.po:7583:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/zh_CN/LC_MESSAGES/cinder.po:7584:#~ msgstr "为%s初始化适配器消费者(Adapter Consumer)"
+cinder/cinder/locale/zh_CN/LC_MESSAGES/cinder.po:7589:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/uk/LC_MESSAGES/cinder.po:1114:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/uk/LC_MESSAGES/cinder.po:4170:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/uk/LC_MESSAGES/cinder.po:7567:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/uk/LC_MESSAGES/cinder.po:7573:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/it/LC_MESSAGES/cinder.po:1119:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/it/LC_MESSAGES/cinder.po:4176:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/it/LC_MESSAGES/cinder.po:7581:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/it/LC_MESSAGES/cinder.po:7582:#~ msgstr "Inizializzando il Consumer Adapter per %s"
+cinder/cinder/locale/it/LC_MESSAGES/cinder.po:7587:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/ja/LC_MESSAGES/cinder.po:1119:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/ja/LC_MESSAGES/cinder.po:4182:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/ja/LC_MESSAGES/cinder.po:7585:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/ja/LC_MESSAGES/cinder.po:7586:#~ msgstr "%sのアダプターコンシューマー(Adapter Consumer)を初期化しています。"
+cinder/cinder/locale/ja/LC_MESSAGES/cinder.po:7591:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/pt_BR/LC_MESSAGES/cinder.po:1119:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/pt_BR/LC_MESSAGES/cinder.po:4182:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/pt_BR/LC_MESSAGES/cinder.po:7591:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/pt_BR/LC_MESSAGES/cinder.po:7597:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/da/LC_MESSAGES/cinder.po:1113:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/da/LC_MESSAGES/cinder.po:4168:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/da/LC_MESSAGES/cinder.po:7568:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/da/LC_MESSAGES/cinder.po:7574:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/tr/LC_MESSAGES/cinder.po:1113:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/tr/LC_MESSAGES/cinder.po:4168:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/tr/LC_MESSAGES/cinder.po:7567:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/tr/LC_MESSAGES/cinder.po:7573:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/cinder.pot:1113:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/cinder.pot:4168:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/ru/LC_MESSAGES/cinder.po:1144:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/ru/LC_MESSAGES/cinder.po:4284:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/ru/LC_MESSAGES/cinder.po:7733:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/ru/LC_MESSAGES/cinder.po:7739:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/de/LC_MESSAGES/cinder.po:1118:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/de/LC_MESSAGES/cinder.po:4173:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/de/LC_MESSAGES/cinder.po:7573:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/de/LC_MESSAGES/cinder.po:7579:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/fr/LC_MESSAGES/cinder.po:1131:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/fr/LC_MESSAGES/cinder.po:4218:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/fr/LC_MESSAGES/cinder.po:7638:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/fr/LC_MESSAGES/cinder.po:7644:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/en_AU/LC_MESSAGES/cinder.po:1119:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/en_AU/LC_MESSAGES/cinder.po:4190:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/en_AU/LC_MESSAGES/cinder.po:7598:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/en_AU/LC_MESSAGES/cinder.po:7599:#~ msgstr "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/en_AU/LC_MESSAGES/cinder.po:7604:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/en_GB/LC_MESSAGES/cinder.po:1122:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/en_GB/LC_MESSAGES/cinder.po:4179:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/en_GB/LC_MESSAGES/cinder.po:7589:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/en_GB/LC_MESSAGES/cinder.po:7595:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/zh_TW/LC_MESSAGES/cinder.po:1118:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/zh_TW/LC_MESSAGES/cinder.po:4173:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/zh_TW/LC_MESSAGES/cinder.po:7575:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/zh_TW/LC_MESSAGES/cinder.po:7581:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/cs/LC_MESSAGES/cinder.po:1155:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/cs/LC_MESSAGES/cinder.po:4241:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/cs/LC_MESSAGES/cinder.po:7619:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/cs/LC_MESSAGES/cinder.po:7625:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/bs/LC_MESSAGES/cinder.po:1113:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/bs/LC_MESSAGES/cinder.po:4168:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/bs/LC_MESSAGES/cinder.po:7569:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/bs/LC_MESSAGES/cinder.po:7575:#~ msgid "Exception while processing consumer"
+cinder/cinder/locale/ko/LC_MESSAGES/cinder.po:1118:msgid "Creating Consumer connection for Service %s"
+cinder/cinder/locale/ko/LC_MESSAGES/cinder.po:4173:msgid "Failed to declare consumer for topic '%(topic)s': %(err_str)s"
+cinder/cinder/locale/ko/LC_MESSAGES/cinder.po:7575:#~ msgid "Initing the Adapter Consumer for %s"
+cinder/cinder/locale/ko/LC_MESSAGES/cinder.po:7581:#~ msgid "Exception while processing consumer"
+cinder/cinder/quota.py:163:            # internal consumer of this interface wants to access the
+cinder/cinder/service.py:354:        LOG.debug(_("Creating Consumer connection for Service %s") %
+cinder/cinder/service.py:359:        # Share this same connection for these Consumers
+cinder/cinder/service.py:360:        self.conn.create_consumer(self.topic, rpc_dispatcher, fanout=False)
+cinder/cinder/service.py:363:        self.conn.create_consumer(node_topic, rpc_dispatcher, fanout=False)
+cinder/cinder/service.py:365:        self.conn.create_consumer(self.topic, rpc_dispatcher, fanout=True)
+cinder/cinder/service.py:367:        # Consume from all consumers in a thread

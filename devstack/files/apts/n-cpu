@@ -1,0 +1,7 @@
+# Stuff for diablo volumes
+lvm2
+open-iscsi
+open-iscsi-utils
+genisoimage
+sysfsutils
+sg3-utils
